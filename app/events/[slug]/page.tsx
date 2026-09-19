@@ -1,13 +1,10 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { cacheLife, cacheTag } from "next/cache";
 import { IEvent } from "@/database";
 import EventCard from "@/components/EventCard";
 import BookEvent from "@/components/BookEvent";
-import { getSimilarEventsBySlug } from "@/lib/actions/event.actions";
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+import { getEventBySlug, getSimilarEventsBySlug } from "@/lib/actions/event.actions";
 
 const EventDetailItem = ({ icon, alt, label }: { icon: string; alt: string; label: string; }) => (
     <div className="flex-row-gap-2 items-center">
@@ -34,27 +31,6 @@ const EventTags = ({ tags }: { tags: string[] }) => (
         ))}
     </div>
 )
-
-const getEventBySlug = async (slug: string): Promise<IEvent | null> => {
-    'use cache';
-    cacheLife('hours');
-    cacheTag('events');
-
-    try {
-        const request = await fetch(`${BASE_URL}/api/events/${slug}`);
-
-        if (!request.ok) {
-            if (request.status === 404) return null;
-            throw new Error(`Failed to fetch event: ${request.statusText}`);
-        }
-
-        const response = await request.json();
-        return response.event ?? null;
-    } catch (error) {
-        console.error('Error fetching event:', error);
-        return null;
-    }
-}
 
 const SimilarEvents = async ({ slug }: { slug: string }) => {
     const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
