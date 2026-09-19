@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { cacheLife, cacheTag } from "next/cache";
 import { IEvent } from "@/database";
 import EventCard from "@/components/EventCard";
 import BookEvent from "@/components/BookEvent";
@@ -33,40 +35,51 @@ const EventTags = ({ tags }: { tags: string[] }) => (
     </div>
 )
 
-const EventDetailsPage = async ({ params }: { params: Promise<{ slug: string }> }) => {
-    const { slug } = await params;
+const getEventBySlug = async (slug: string): Promise<IEvent | null> => {
+    'use cache';
+    cacheLife('hours');
+    cacheTag('events');
 
-    let event;
     try {
-        const request = await fetch(`${BASE_URL}/api/events/${slug}`, {
-            next: { revalidate: 60 }
-        });
+        const request = await fetch(`${BASE_URL}/api/events/${slug}`);
 
         if (!request.ok) {
-            if (request.status === 404) {
-                return notFound();
-            }
+            if (request.status === 404) return null;
             throw new Error(`Failed to fetch event: ${request.statusText}`);
         }
 
         const response = await request.json();
-        event = response.event;
-
-        if (!event) {
-            return notFound();
-        }
+        return response.event ?? null;
     } catch (error) {
         console.error('Error fetching event:', error);
-        return notFound();
+        return null;
     }
+}
+
+const SimilarEvents = async ({ slug }: { slug: string }) => {
+    const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
+
+    return (
+        <div className="events">
+            {similarEvents.length > 0 && similarEvents.map((similarEvent: IEvent) => (
+                <EventCard key={similarEvent.title} {...similarEvent} />
+            ))}
+        </div>
+    )
+}
+
+const EventDetails = async ({ params }: { params: Promise<{ slug: string }> }) => {
+    const { slug } = await params;
+
+    const event = await getEventBySlug(slug);
+
+    if (!event) return notFound();
 
     const { description, image, overview, date, time, location, mode, agenda, audience, tags, organizer } = event;
 
     if (!description) return notFound();
 
     const bookings = 10;
-
-    const similarEvents: IEvent[] = await getSimilarEventsBySlug(slug);
 
     return (
         <section id="event">
@@ -124,14 +137,18 @@ const EventDetailsPage = async ({ params }: { params: Promise<{ slug: string }> 
 
             <div className="flex w-full flex-col gap-4 pt-20">
                 <h2>Similar Events</h2>
-                <div className="events">
-                    {similarEvents.length > 0 && similarEvents.map((similarEvent: IEvent) => (
-                        <EventCard key={similarEvent.title} {...similarEvent} />
-                    ))}
-                </div>
+                <Suspense fallback={<p>Loading similar events...</p>}>
+                    <SimilarEvents slug={slug} />
+                </Suspense>
             </div>
         </section>
     )
 }
+
+const EventDetailsPage = ({ params }: { params: Promise<{ slug: string }> }) => (
+    <Suspense fallback={<p>Loading event...</p>}>
+        <EventDetails params={params} />
+    </Suspense>
+)
 
 export default EventDetailsPage
