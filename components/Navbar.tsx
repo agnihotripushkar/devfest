@@ -12,8 +12,16 @@ export const Navbar = () => {
 
                 <ul>
                     <Link href="/">Home</Link>
-                    <Link href="/">Events</Link>
+                    <Link href="/#events">Events</Link>
                     <Link href="/">Create Event</Link>
+                    <a
+                        href="https://github.com/agnihotripushkar/devfest"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary transition-colors"
+                    >
+                        GitHub
+                    </a>
                 </ul>
             </nav>
 
